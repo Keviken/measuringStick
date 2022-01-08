@@ -74,7 +74,7 @@ if ( current_user_can( 'switch_themes' ) && isset( $_GET['action'] ) ) {
 		}
 
 		$active = wp_get_theme();
-		if ( $active->get( 'Template' ) == $_GET['stylesheet'] ) {
+		if ( $active->get( 'Template' ) === $_GET['stylesheet'] ) {
 			wp_redirect( admin_url( 'themes.php?delete-active-child=true' ) );
 		} else {
 			delete_theme( $_GET['stylesheet'] );
@@ -123,6 +123,7 @@ if ( current_user_can( 'switch_themes' ) && isset( $_GET['action'] ) ) {
 	}
 }
 
+// Used in the HTML title tag.
 $title       = __( 'Manage Themes' );
 $parent_file = 'themes.php';
 
@@ -306,18 +307,31 @@ if ( $current_theme->errors() && ( ! is_multisite() || current_user_can( 'manage
 $current_theme_actions = array();
 
 if ( is_array( $submenu ) && isset( $submenu['themes.php'] ) ) {
+	$forbidden_paths = array(
+		'themes.php',
+		'theme-editor.php',
+		'site-editor.php',
+		'edit.php?post_type=wp_navigation',
+	);
+
 	foreach ( (array) $submenu['themes.php'] as $item ) {
 		$class = '';
-		if ( 'themes.php' === $item[2] || 'theme-editor.php' === $item[2] || 0 === strpos( $item[2], 'customize.php' ) ) {
+
+		if ( in_array( $item[2], $forbidden_paths, true ) || str_starts_with( $item[2], 'customize.php' ) ) {
 			continue;
 		}
+
 		// 0 = name, 1 = capability, 2 = file.
-		if ( ( strcmp( $self, $item[2] ) == 0 && empty( $parent_file ) ) || ( $parent_file && ( $item[2] == $parent_file ) ) ) {
+		if ( 0 === strcmp( $self, $item[2] ) && empty( $parent_file )
+			|| $parent_file && $item[2] === $parent_file
+		) {
 			$class = ' current';
 		}
+
 		if ( ! empty( $submenu[ $item[2] ] ) ) {
 			$submenu[ $item[2] ] = array_values( $submenu[ $item[2] ] ); // Re-index.
 			$menu_hook           = get_plugin_page_hook( $submenu[ $item[2] ][0][2], $item[2] );
+
 			if ( file_exists( WP_PLUGIN_DIR . "/{$submenu[$item[2]][0][2]}" ) || ! empty( $menu_hook ) ) {
 				$current_theme_actions[] = "<a class='button$class' href='admin.php?page={$submenu[$item[2]][0][2]}'>{$item[0]}</a>";
 			} else {
@@ -362,8 +376,8 @@ if ( ! empty( $_GET['search'] ) ) {
  */
 
 foreach ( $themes as $theme ) :
-	$aria_action = esc_attr( $theme['id'] . '-action' );
-	$aria_name   = esc_attr( $theme['id'] . '-name' );
+	$aria_action = $theme['id'] . '-action';
+	$aria_name   = $theme['id'] . '-name';
 
 	$active_class = '';
 	if ( $theme['active'] ) {
@@ -373,7 +387,7 @@ foreach ( $themes as $theme ) :
 <div class="theme<?php echo $active_class; ?>">
 	<?php if ( ! empty( $theme['screenshot'][0] ) ) { ?>
 		<div class="theme-screenshot">
-			<img src="<?php echo $theme['screenshot'][0]; ?>" alt="" />
+			<img src="<?php echo esc_attr( $theme['screenshot'][0] ); ?>" alt="" />
 		</div>
 	<?php } else { ?>
 		<div class="theme-screenshot blank"></div>
@@ -507,7 +521,7 @@ foreach ( $themes as $theme ) :
 	/* translators: %s: Theme name. */
 	$details_aria_label = sprintf( _x( 'View Theme Details for %s', 'theme' ), $theme['name'] );
 	?>
-	<button type="button" aria-label="<?php echo esc_attr( $details_aria_label ); ?>" class="more-details" id="<?php echo $aria_action; ?>"><?php _e( 'Theme Details' ); ?></button>
+	<button type="button" aria-label="<?php echo esc_attr( $details_aria_label ); ?>" class="more-details" id="<?php echo esc_attr( $aria_action ); ?>"><?php _e( 'Theme Details' ); ?></button>
 	<div class="theme-author">
 		<?php
 		/* translators: %s: Theme author name. */
@@ -517,11 +531,11 @@ foreach ( $themes as $theme ) :
 
 	<div class="theme-id-container">
 		<?php if ( $theme['active'] ) { ?>
-			<h2 class="theme-name" id="<?php echo $aria_name; ?>">
+			<h2 class="theme-name" id="<?php echo esc_attr( $aria_name ); ?>">
 				<span><?php _ex( 'Active:', 'theme' ); ?></span> <?php echo $theme['name']; ?>
 			</h2>
 		<?php } else { ?>
-			<h2 class="theme-name" id="<?php echo $aria_name; ?>"><?php echo $theme['name']; ?></h2>
+			<h2 class="theme-name" id="<?php echo esc_attr( $aria_name ); ?>"><?php echo $theme['name']; ?></h2>
 		<?php } ?>
 
 		<div class="theme-actions">
@@ -540,7 +554,7 @@ foreach ( $themes as $theme ) :
 			?>
 			<a class="button activate" href="<?php echo $theme['actions']['activate']; ?>" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _e( 'Activate' ); ?></a>
 			<?php
-			if ( current_user_can( 'edit_theme_options' ) && current_user_can( 'customize' ) ) {
+			if ( ! $theme['blockTheme'] && current_user_can( 'edit_theme_options' ) && current_user_can( 'customize' ) ) {
 				/* translators: %s: Theme name. */
 				$live_preview_aria_label = sprintf( _x( 'Live Preview %s', 'theme' ), '{{ data.name }}' );
 				?>
@@ -552,7 +566,7 @@ foreach ( $themes as $theme ) :
 			$aria_label = sprintf( _x( 'Cannot Activate %s', 'theme' ), '{{ data.name }}' );
 			?>
 			<a class="button disabled" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _ex( 'Cannot Activate', 'theme' ); ?></a>
-			<?php if ( current_user_can( 'edit_theme_options' ) && current_user_can( 'customize' ) ) { ?>
+			<?php if ( ! $theme['blockTheme'] && current_user_can( 'edit_theme_options' ) && current_user_can( 'customize' ) ) { ?>
 				<a class="button button-primary hide-if-no-customize disabled"><?php _e( 'Live Preview' ); ?></a>
 			<?php } ?>
 		<?php } ?>
@@ -898,19 +912,23 @@ function wp_theme_auto_update_setting_template() {
 					/* translators: %s: Theme name. */
 					$aria_label = sprintf( _x( 'Activate %s', 'theme' ), '{{ data.name }}' );
 					?>
-					<a class="button activate" href="{{{ data.actions.activate }}}" aria-label="<?php echo $aria_label; ?>"><?php _e( 'Activate' ); ?></a>
-					<?php
-					/* translators: %s: Theme name. */
-					$live_preview_aria_label = sprintf( _x( 'Live Preview %s', 'theme' ), '{{ data.name }}' );
-					?>
-					<a aria-label="<?php echo esc_attr( $live_preview_aria_label ); ?>" class="button button-primary load-customize hide-if-no-customize" href="{{{ data.actions.customize }}}"><?php _e( 'Live Preview' ); ?></a>
+					<a class="button activate" href="{{{ data.actions.activate }}}" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _e( 'Activate' ); ?></a>
+					<# if ( ! data.blockTheme ) { #>
+						<?php
+						/* translators: %s: Theme name. */
+						$live_preview_aria_label = sprintf( _x( 'Live Preview %s', 'theme' ), '{{ data.name }}' );
+						?>
+						<a aria-label="<?php echo esc_attr( $live_preview_aria_label ); ?>" class="button button-primary load-customize hide-if-no-customize" href="{{{ data.actions.customize }}}"><?php _e( 'Live Preview' ); ?></a>
+					<# } #>
 				<# } else { #>
 					<?php
 					/* translators: %s: Theme name. */
 					$aria_label = sprintf( _x( 'Cannot Activate %s', 'theme' ), '{{ data.name }}' );
 					?>
 					<a class="button disabled" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _ex( 'Cannot Activate', 'theme' ); ?></a>
-					<a class="button button-primary hide-if-no-customize disabled"><?php _e( 'Live Preview' ); ?></a>
+					<# if ( ! data.blockTheme ) { #>
+						<a class="button button-primary hide-if-no-customize disabled"><?php _e( 'Live Preview' ); ?></a>
+					<# } #>
 				<# } #>
 			<# } #>
 		</div>
@@ -1116,18 +1134,22 @@ function wp_theme_auto_update_setting_template() {
 					$aria_label = sprintf( _x( 'Activate %s', 'theme' ), '{{ data.name }}' );
 					?>
 					<# if ( data.actions.activate ) { #>
-						<a href="{{{ data.actions.activate }}}" class="button activate" aria-label="<?php echo $aria_label; ?>"><?php _e( 'Activate' ); ?></a>
+						<a href="{{{ data.actions.activate }}}" class="button activate" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _e( 'Activate' ); ?></a>
 					<# } #>
-					<a href="{{{ data.actions.customize }}}" class="button button-primary load-customize hide-if-no-customize"><?php _e( 'Live Preview' ); ?></a>
+					<# if ( ! data.blockTheme ) { #>
+						<a href="{{{ data.actions.customize }}}" class="button button-primary load-customize hide-if-no-customize"><?php _e( 'Live Preview' ); ?></a>
+					<# } #>
 				<# } else { #>
 					<?php
 					/* translators: %s: Theme name. */
 					$aria_label = sprintf( _x( 'Cannot Activate %s', 'theme' ), '{{ data.name }}' );
 					?>
 					<# if ( data.actions.activate ) { #>
-						<a class="button disabled" aria-label="<?php echo $aria_label; ?>"><?php _ex( 'Cannot Activate', 'theme' ); ?></a>
+						<a class="button disabled" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _ex( 'Cannot Activate', 'theme' ); ?></a>
 					<# } #>
-					<a class="button button-primary hide-if-no-customize disabled"><?php _e( 'Live Preview' ); ?></a>
+					<# if ( ! data.blockTheme ) { #>
+						<a class="button button-primary hide-if-no-customize disabled"><?php _e( 'Live Preview' ); ?></a>
+					<# } #>
 				<# } #>
 			</div>
 
@@ -1136,7 +1158,7 @@ function wp_theme_auto_update_setting_template() {
 				/* translators: %s: Theme name. */
 				$aria_label = sprintf( _x( 'Delete %s', 'theme' ), '{{ data.name }}' );
 				?>
-				<a href="{{{ data.actions['delete'] }}}" class="button delete-theme" aria-label="<?php echo $aria_label; ?>"><?php _e( 'Delete' ); ?></a>
+				<a href="{{{ data.actions['delete'] }}}" class="button delete-theme" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _e( 'Delete' ); ?></a>
 			<# } #>
 		</div>
 	</div>
