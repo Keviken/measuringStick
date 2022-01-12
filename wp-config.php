@@ -20,7 +20,7 @@
 
 // ** Database settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
-define( 'DB_NAME', 'measuringStick' );
+define( 'DB_NAME', 'heroku_7efc49c06adf3a3' );
 
 /** Database username */
 define( 'DB_USER', 'b57a6bbd298b8f' );
