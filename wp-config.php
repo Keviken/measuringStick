@@ -23,13 +23,13 @@
 define( 'DB_NAME', 'measuringStick' );
 
 /** Database username */
-define( 'DB_USER', 'root' );
+define( 'DB_USER', 'b57a6bbd298b8f' );
 
 /** Database password */
-define( 'DB_PASSWORD', '' );
+define( 'DB_PASSWORD', '20c89ec1' );
 
 /** Database hostname */
-define( 'DB_HOST', 'localhost' );
+define( 'DB_HOST', 'us-cdbr-east-05.cleardb.net' );
 
 /** Database charset to use in creating database tables. */
 define( 'DB_CHARSET', 'utf8mb4' );
